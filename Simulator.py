@@ -76,6 +76,7 @@ class Simulator:
 
     def simulate_by_tree(self, n):
         tree = te.simulate_species_tree(n, planted=False)
+        #node dict erstellen udn updaten zum hinzufügen von kanten
         for edge in tree.edges():
             self.digraph.add_edge(edge[0].label, edge[1].label)
         
@@ -105,58 +106,34 @@ class Simulator:
         else:
             self.digraph.add_edge(v1, v2)
 
-    #TO-DO benchmark vs reachable nodes with outdegree
-    def reachable_nodes_leaves(self, n):
-        leaves = set(self.leaves)
-        # list of nodes that need to be checked for succcessors
-        nodes_to_check = [successor for successor in self.digraph.successors(n)]
-        # list to return
-        reachable_nodes = set(nodes_to_check)
-        while len(nodes_to_check) != 0:
-            # if all nodes in node to check are leaves the while loop shall stop
-            for node in nodes_to_check:
-                # check node for successors
-                if node not in leaves:  
-                    # if node has successors then add the successors to the reachable nodes and the list nodes to check
-                    for successor in self.digraph.successors(node):
-                        #if successor is already in reachable nodes continue with next successor 
-                        if successor in reachable_nodes:
-                            continue
-                        else:
-                            #add the successor to the nodes to check and the reachable nodes
-                            nodes_to_check.append(successor)
-                            reachable_nodes.add(successor)       
-                # remove node because it has been checked for successors
-                nodes_to_check.remove(node)
-        return reachable_nodes
-
 
     def reachable_nodes(self, n):
         # list of nodes that need to be checked for succcessors
         nodes_to_check = [successor for successor in self.digraph.successors(n)]
+        nodes_to_check_copy = list(nodes_to_check)
         # list to return
         reachable_nodes = set(nodes_to_check)
-        while len(nodes_to_check) != 0:
+        while nodes_to_check:
             # if all nodes in node to check are leaves the while loop shall stop
-            for node in nodes_to_check:
-                # check node for successors
-                if self.digraph.out_degree(node) != 0:  # eventuell ersetzen mit leaves set zur schnelleren abfrage
+            for node in nodes_to_check:  
                     # if node has successors then add the successors to the reachable nodes and the list nodes to check
-                    for successor in self.digraph.successors(node):
-                        #if successor is already in reachable nodes continue with next successor 
-                        if successor in reachable_nodes:
-                            continue
-                        else:
-                            #add the successor to the nodes to check and the reachable nodes
-                            nodes_to_check.append(successor)
-                            reachable_nodes.add(successor)       
+                for successor in self.digraph.successors(node):
+                    #if successor is already in reachable nodes continue with next successor 
+                    if successor in reachable_nodes:
+                        continue
+                    else:
+                        #add the successor to the nodes to check and the reachable nodes
+                        nodes_to_check_copy.append(successor)
+                        reachable_nodes.add(successor)       
                 # remove node because it has been checked for successors
-                nodes_to_check.remove(node)
+                nodes_to_check_copy.remove(node)
+            #overwrite nodes_to_check with the updated list
+            nodes_to_check = list(nodes_to_check_copy)
         return reachable_nodes
 
 
     def update_node_dict(self, n):
-        """Updates the node dictory whenever there is a new specialisation/hybridization during the simulation"""
+        """Updates the node dictionary whenever there is a new specialisation/hybridization during the simulation"""
         self.node_dict[n] = set()
         nodes_to_check = [predecessor for predecessor in self.digraph.predecessors(n)]
         for node in nodes_to_check:
@@ -194,18 +171,6 @@ class Simulator:
     def return_leaves(self):
         return set([leave for leave in self.digraph.nodes if self.digraph.out_degree(leave) == 0])
         
-
-    def level_k(self):
-        max_hybrids = 0
-        G = nx.Graph(self.digraph.to_undirected())
-        for biconnect_component in nx.biconnected_components(G):
-            current_hybrid_counter = 0
-            for node in biconnect_component:
-                if self.digraph.in_degree(node) >= 2:
-                    current_hybrid_counter = current_hybrid_counter + 1
-            if current_hybrid_counter > max_hybrids:
-                max_hybrids = current_hybrid_counter
-        return max_hybrids
         
 
 

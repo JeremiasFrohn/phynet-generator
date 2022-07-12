@@ -1,3 +1,4 @@
+from itertools import pairwise
 import networkx as nx
 import matplotlib.pyplot as plt
 import asymmetree.treeevolve as te
@@ -8,6 +9,7 @@ import random
 import numpy
 import vistools as vt
 import Simulator as sim
+import PhyNetAnalyser as pna
 import timeit
 
 s1 = sim.Simulator()
@@ -24,8 +26,9 @@ print(s2.node_dict)
 pos = vt.topo_pos(G)
 pos2 = vt.topo_pos(G2)
 
-print("reachable nodes from 2")
-node_list = s1.reachable_nodes(2)
+print("reachable nodes from 1")
+node_list = s1.reachable_nodes(1)
+print(node_list)
 
 G3 = nx.Graph(s1.digraph.to_undirected())
 
@@ -34,11 +37,25 @@ for biconnected_component in nx.biconnected_components(G3):
     print("bc:")
     print(biconnected_component)
 
-print("level k von G:")
-print(str(s1.level_k()))
+analyser = pna.PhyNetAnalyser(G)
+print("is shortcut free:")
+print(str(analyser.is_shortcut_free(G)))
+
+print("is pcc:")
+print(str(analyser.is_pcc(G)))
 
 print("return leave function ")
 print(s1.return_leaves())
+
+print("predecessors of 2 ")
+print(set(s1.digraph.predecessors(2)))
+
+
+liste = [1,2,3,4,5]
+print("pairwise list iteration")
+for e1, e2 in pairwise(liste):
+    print(str([e1,e2]))
+
 
 plt.subplot(221)
 nx.draw_networkx(
@@ -55,5 +72,3 @@ nx.draw_networkx(
     with_labels=True,
 )
 plt.show()
-
-print(timeit.timeit("s1.reachable_nodes(1)"))

@@ -9,18 +9,9 @@ def bm_reachables():
     sim1.digraph = G
     return sim1.reachable_nodes(1)
 
-def bm_reachables_leaves(): 
-    sim1 = sim.Simulator()
-    G = nx.DiGraph()
-    G.add_edges_from([(1, 2), (1, 3), (2, 4), (2, 5), (4, 6), (4, 7), (6, 8), (6, 7), (7, 9), (8, 10), (8, 11)])
-    sim1.digraph = G
-    return sim1.reachable_nodes_leaves(1)
-
 def bm_dfs_reachables():
-    sim1 = sim.Simulator()
     G = nx.DiGraph()
     G.add_edges_from([(1, 2), (1, 3), (2, 4), (2, 5), (4, 6), (4, 7), (6, 8), (6, 7), (7, 9), (8, 10), (8, 11)])
-    sim1.digraph = G
     return nx.predecessor(G, 1)
 
 
@@ -36,18 +27,6 @@ def bm_reachables_n10():
      (29, 33), (30, 31), (30, 33)])
     sim1.digraph = G
     return sim1.reachable_nodes(1)
-
-def bm_reachables_n10_leaves():
-    sim1 = sim.Simulator()
-    G = nx.DiGraph()
-    G.add_edges_from([(1, 2), (1, 3), (2, 5), (2, 6), (3, 4), (3, 6), (4, 8),
-     (5, 11), (5, 10), (6, 7), (6, 4), (7, 9), (7, 10), (8, 21), (9, 18),
-     (9, 19), (10, 12), (11, 13), (11, 14), (12, 15), (12, 17), (13, 22),
-     (13, 17), (14, 16), (14, 17), (15, 24), (15, 25), (16, 20), (16, 8), (17, 23),
-     (19, 30), (21, 27), (21, 28), (22, 29), (22, 19), (25, 26), (25, 28), (29, 32),
-     (29, 33), (30, 31), (30, 33)])
-    sim1.digraph = G
-    return sim1.reachable_nodes_leaves(1)
 
 
 def bm_dfs_reachables_n10():
@@ -79,23 +58,6 @@ def bm_reachables_n20():
              (44, 50), (49, 53), (49, 54)])
     sim1.digraph = G
     return sim1.reachable_nodes(1)
-
-
-def bm_reachables_n20_leaves():
-    sim1 = sim.Simulator()
-    G = nx.DiGraph()
-    G.add_edges_from([(1, 2), (1, 3), (2, 14), (2, 12), (3, 4), (3, 5),
-     (4, 6), (4, 5), (5, 7), (6, 10), (6, 11), (7, 8), (7, 9), (8, 13),
-      (9, 18), (9, 19), (10, 12), (10, 8), (11, 21), (11, 22), (12, 15),
-       (13, 28), (13, 29), (14, 49), (14, 44), (15, 16), (15, 17), (16, 20),
-        (16, 22), (17, 23), (17, 24), (18, 41), (18, 43), (19, 32), (19, 33),
-         (20, 25), (20, 27), (21, 26), (21, 27), (22, 39), (22, 24), (24, 40),
-          (25, 35), (25, 36), (26, 51), (26, 52), (28, 30), (28, 31), (30, 45),
-           (30, 46), (31, 42), (31, 43), (32, 37), (32, 34), (33, 34), (33, 36),
-            (34, 38), (39, 55), (39, 56), (41, 47), (41, 48), (43, 44), (43, 46),
-             (44, 50), (49, 53), (49, 54)])
-    sim1.digraph = G
-    return sim1.reachable_nodes_leaves(1)
 
 
 def bm_dfs_reachables_n20():

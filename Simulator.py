@@ -1,63 +1,61 @@
+
+from ast import List
+from asyncio.windows_events import NULL
 import asymmetree.treeevolve as te
 import networkx as nx
+import PhyNetwork as pn
 import random
+import itertools
 
 class Simulator:
     def __init__(self):
-        self.digraph = nx.DiGraph()
-        self.leaves = []
-        self.node_dict = {}
-        self.cluster_dict = {}
+        self.phyNet = pn.PhyNetwork(nx.DiGraph())
 
-    def simulate(self, n, s, h, mtype_rate, ntype_rate, ytype_rate):
+    def simulate(self, n, s, h, mtype_rate, ntype_rate):
         # initalize Graph with root and one specialization
-        self.digraph.add_edges_from([(1, 2), (1, 3)])
-        # keep track of reachable nodes
-        self.node_dict[1] = set([2, 3])
+        self.phyNet.digraph.add_edges_from([(1, 2), (1, 3)])
         # leaves that will be updated whenever the leaves change
-        self.leaves.extend([2, 3])
+        leaves = list()
+        leaves.extend([2, 3])
+        
         # node and leave counter
         node_counter = 4
         leave_counter = 2
         # sum of all hybridization rates for
-        rate_sum = ntype_rate + mtype_rate + ytype_rate
+        rate_sum = ntype_rate + mtype_rate 
         # specialization and hybridization process
-        while len(self.leaves) < n:
+        while len(leaves) < n:
             # specialization
             rdm = random.random()
             rdm2 = random.random()
             if rdm <= s / (h + s):
                 print("added specialisation")
-                x = random.choice(self.leaves)
-                self.digraph.add_edges_from([(x, node_counter), (x, node_counter + 1)])
-                self.update_node_dict(node_counter)
-                self.update_node_dict(node_counter + 1)
-                self.leaves.remove(x)
-                self.leaves.extend([node_counter, node_counter + 1])
+                x = random.choice(leaves)
+                self.phyNet.digraph.add_edges_from([(x, node_counter), (x, node_counter + 1)])
+                leaves.remove(x)
+                leaves.extend([node_counter, node_counter + 1])
                 leave_counter += 2
                 node_counter = node_counter + 2
             # n_type hybridization
             elif rdm2 <= ntype_rate / rate_sum:
                 print("added ntype")
-                xy = random.sample(self.leaves, 2)
-                self.leaves.remove(xy[0])
-                self.leaves.remove(xy[1])
-                self.leaves.extend([node_counter, node_counter + 1])
-                self.digraph.add_edges_from(
+                xy = random.sample(leaves, 2)
+                leaves.remove(xy[0])
+                leaves.remove(xy[1])
+                leaves.extend([node_counter, node_counter + 1])
+                self.phyNet.digraph.add_edges_from(
                     [(xy[0], node_counter), (xy[1], node_counter + 1), (xy[0], xy[1])]
                 )
-                self.update_node_dict(node_counter)
-                self.update_node_dict(node_counter + 1)
                 node_counter = node_counter + 2
             # m_type hybridization
             else:
                 print("added mtype")
-                xy = random.sample(self.leaves, 2)
-                self.leaves.remove(xy[0])
-                self.leaves.remove(xy[1])
-                self.leaves.extend([node_counter, node_counter + 1, node_counter + 2])
+                xy = random.sample(leaves, 2)
+                leaves.remove(xy[0])
+                leaves.remove(xy[1])
+                leaves.extend([node_counter, node_counter + 1, node_counter + 2])
 
-                self.digraph.add_edges_from(
+                self.phyNet.digraph.add_edges_from(
                     [
                         (xy[0], node_counter),
                         (xy[1], node_counter + 1),
@@ -65,113 +63,184 @@ class Simulator:
                         (xy[1], node_counter + 2),
                     ]
                 )
-                self.update_node_dict(node_counter)
-                self.update_node_dict(node_counter + 1)
-                self.update_node_dict(node_counter + 2)
                 node_counter = node_counter + 3
                 leave_counter += 1
         print("Edgelist sim Graph")
-        print(self.digraph.edges)
-        return self.digraph
+        print(self.phyNet.digraph.edges)
+        return self.phyNet.digraph
 
-    def simulate_by_tree(self, n):
-        tree = te.simulate_species_tree(n, planted=False)
+    def simulate_by_tree(self, n, k):
+        tree = te.species_tree_n(n, planted=False)
         #node dict erstellen udn updaten zum hinzufügen von kanten
         for edge in tree.edges():
-            self.digraph.add_edge(edge[0].label, edge[1].label)
+            self.phyNet.digraph.add_edge(edge[0].label, edge[1].label)
         
-        for i in range(n):
+        for i in range(k):
             self.add_edge_random()
         print("Edgelist sim by tree Graph")
-        print(self.digraph.edges)
-        self.create_node_dict()
-        return self.digraph
+        print(self.phyNet.digraph.edges)
+        
+        return self.phyNet.digraph
 
-    def add_edge_random(self):
+    def add_edge_random(self, subgraph_edges = None):
         # take 2 random edges e1, e2 and split them via two nodes v1, v2
-        edges = [e for e in self.digraph.edges]
+        edges = list()
+        if subgraph_edges is not None:
+            edges = list(subgraph_edges)
+            print(edges)
+        else:
+            edges = [e for e in self.phyNet.digraph.edges]
         # sample
         e1 = random.choice(edges)
         e2 = random.choice(edges)
-        v1 = len(self.digraph)
+        max_node= max([node for node in self.phyNet.digraph.nodes()])
+        v1 = max_node + 1
         v2 = v1 + 1
 
-        self.digraph.remove_edges_from([e1, e2])
-        self.digraph.add_edges_from([(e1[0], v1), (v1, e1[1])])
-        self.digraph.add_edges_from([(e2[0], v2), (v2, e2[1])])
+        self.phyNet.digraph.remove_edges_from([e1, e2])
+        self.phyNet.digraph.add_edges_from([(e1[0], v1), (v1, e1[1])])
+        self.phyNet.digraph.add_edges_from([(e2[0], v2), (v2, e2[1])])
 
         # if v1 is above v2 add edge from v1 to v2 else add edge from v2 to v1
-        if nx.has_path(self.digraph, v2, v1):
-            self.digraph.add_edge(v2, v1)
+        if nx.has_path(self.phyNet.digraph, v2, v1):
+            self.phyNet.digraph.add_edge(v2, v1)
         else:
-            self.digraph.add_edge(v1, v2)
+            self.phyNet.digraph.add_edge(v1, v2)
 
-
-    def reachable_nodes(self, n):
-        # list of nodes that need to be checked for succcessors
-        nodes_to_check = [successor for successor in self.digraph.successors(n)]
-        nodes_to_check_copy = list(nodes_to_check)
-        # list to return
-        reachable_nodes = set(nodes_to_check)
-        while nodes_to_check:
-            # if all nodes in node to check are leaves the while loop shall stop
-            for node in nodes_to_check:  
-                    # if node has successors then add the successors to the reachable nodes and the list nodes to check
-                for successor in self.digraph.successors(node):
-                    #if successor is already in reachable nodes continue with next successor 
-                    if successor in reachable_nodes:
-                        continue
-                    else:
-                        #add the successor to the nodes to check and the reachable nodes
-                        nodes_to_check_copy.append(successor)
-                        reachable_nodes.add(successor)       
-                # remove node because it has been checked for successors
-                nodes_to_check_copy.remove(node)
-            #overwrite nodes_to_check with the updated list
-            nodes_to_check = list(nodes_to_check_copy)
-        return reachable_nodes
-
-
-    def update_node_dict(self, n):
-        """Updates the node dictionary whenever there is a new specialisation/hybridization during the simulation"""
-        self.node_dict[n] = set()
-        nodes_to_check = [predecessor for predecessor in self.digraph.predecessors(n)]
-        for node in nodes_to_check:
-            if node in self.node_dict:
-                self.node_dict[node].add(n)
-            else:
-                self.node_dict[node] = set([n])
+    def simulate_bcc(self, n, contraction_prob, binary, level_k = 1):
+        #catch error
+        if level_k <= 0:
+            print("cant simulate level k smaller than 1")
+            return
         
-        while len(nodes_to_check) != 0:
-            for node in nodes_to_check:
-                for predecessor in self.digraph.predecessors(node):
-                    nodes_to_check.append(predecessor)
-                    if predecessor in self.node_dict:
-                        self.node_dict[predecessor].add(n)
-                    elif self.digraph.out_degree(predecessor) == 0:
-                            self.node_dict[predecessor] = set()
-                    else:
-                        self.node_dict[predecessor] = set([n])
-                nodes_to_check.remove(node)
-        
-    def create_node_dict(self):
-        for node in self.digraph.nodes:
-            self.node_dict[node] = self.reachable_nodes(node)
+        tree = te.species_tree_n(n, planted = False, contraction_probability = contraction_prob)
+        for edge in tree.edges():
+            self.phyNet.digraph.add_edge(edge[0].label, edge[1].label)
+
+        #list all non binary nodes
+        nonbinary_nodes = [node for node in self.phyNet.digraph.nodes() if self.phyNet.digraph.out_degree(node) > 2]
+       
+
+        for non_binary_node in nonbinary_nodes:
+            out_degree = self.phyNet.digraph.out_degree(non_binary_node)
+            node_counter = max([node for node in self.phyNet.digraph.nodes()]) + 1
+            #remember children
+            children = [child for child in self.phyNet.digraph.successors(non_binary_node)]
+            #remove edges from non binary node to children
+            for child in children:
+                self.phyNet.digraph.remove_edge(non_binary_node, child)
+            
+            hybrid_node = node_counter + out_degree - 1
+            nodes_to_add = [node for node in range(node_counter, node_counter+out_degree-1)]
+            #slice
+            nodes_for_level_k = [node for node in nodes_to_add]
+            nodes_for_children = [node for node in nodes_to_add]
+            nodes_for_children.append(hybrid_node)
+            lowest_nodes = list()
+            lowest_nodes.append(non_binary_node)
+            
+            #set outdegree for root of the biconnected component
+            if binary:
+                out = 2
+            else: 
+                out = out_degree 
+
+            while nodes_to_add:
+                # chose nodes for new edge
+                random_lowest_node = random.choice(lowest_nodes)
+                random_node_to_add = random.choice(nodes_to_add)
+                # add new edge
+                self.phyNet.digraph.add_edge(random_lowest_node, random_node_to_add)
+                #update lowest nodes
+                if random_lowest_node is not non_binary_node or self.phyNet.digraph.out_degree(non_binary_node) == out:
+                    lowest_nodes.remove(random_lowest_node)  
+                lowest_nodes.append(random_node_to_add)
+                nodes_to_add.remove(random_node_to_add)
+            
+
+            for lowest_node in lowest_nodes:
+                self.phyNet.digraph.add_edge(lowest_node, hybrid_node)
+            
+            for node in nodes_for_children:
+                self.phyNet.digraph.add_edge(node, children.pop())
+
+            # level_k 
+            # kanten auflösen
+            for i in range(level_k - 1):
+                self.add_edge_random(nx.edge_bfs(self.phyNet.digraph, non_binary_node))
+                    
+
+
+        return self.phyNet.digraph
+
+    def simulate_non_binary(self, n, contraction_prob):
+        #non binary tree to digraph
+        print("create phyNet by Tree")
+        tree = te.species_tree_n(n, planted = False, contraction_probability = contraction_prob)
+        for edge in tree.edges():
+            self.phyNet.digraph.add_edge(edge[0].label, edge[1].label)
+
+        # vorher liste der nb knoten machen 
+        nonbinary_nodes = [node for node in self.phyNet.digraph.nodes() if self.phyNet.digraph.out_degree(node) > 2]
+        node_counter = max([node for node in self.phyNet.digraph.nodes()]) + 1
+        for node in nonbinary_nodes:
+            # for node with outdegree > 2 create new tree 
+            out_degree = self.phyNet.digraph.out_degree(node)
+            
+            print("Node with outdegree > 2 found")
+            print(out_degree)
+            # remember the children of non binary node
+            children = [child for child in self.phyNet.digraph.successors(node)]
+            # remove edge to children
+            for child in children:
+                self.phyNet.digraph.remove_edge(node, child)               
+            #simulate tree that gets connected to the binary node
+            tree1 = te.species_tree_n( (out_degree - 1) , planted=False)
+            leaves_tree1 = list(tree1.leaves())
+            #count nodes for the labels
+            
+            # update labels
+            for tree_node in tree1.preorder():
+                if tree_node is tree1.root:
+                    #set root lable to nb node
+                    tree1.root.label = node
+                else:
+                    tree_node.label = node_counter
+                    node_counter = node_counter + 1
+            # add edges to digraph
+            for edge in tree1.edges():
+                self.phyNet.digraph.add_edge(edge[0].label, edge[1].label)
+            
+            for leave in leaves_tree1:
+                self.phyNet.digraph.add_edge(leave.label, children.pop())
+
+            #simulate new tree with offset 
+            tree2 = te.species_tree_n((out_degree - 1), planted = False, contraction_probability = contraction_prob)
+            
+            for tree_node in tree2.postorder():
+                if tree_node.is_leaf():
+                    tree_node.label = leaves_tree1.pop().label
+                else:
+                    tree_node.label = node_counter
+                    node_counter = node_counter + 1
+                    
+            for edge in tree2.edges():
+                self.phyNet.digraph.add_edge(edge[1].label, edge[0].label)
+
+            self.phyNet.digraph.add_edge(tree2.root.label, children.pop())
+                
+
+        return self.phyNet.digraph
+
+
+
+        #return tuple consisting of edges of each split
+
+
+
 
     
-    def create_cluster_dict(self):
-        for node, reachables in self.node_dict.items():
-            reachable_leaves = set()
-            for reachable in reachables: 
-                if self.digraph.out_degree(reachable) == 0:
-                    reachable_leaves.add(reachable)
-            self.cluster_dict[node] = reachable_leaves
 
-    
-    def return_leaves(self):
-        return set([leave for leave in self.digraph.nodes if self.digraph.out_degree(leave) == 0])
-        
-        
 
 
 

@@ -15,9 +15,7 @@ class Simulator:
         # initalize Graph with root and one specialization
         self.phyNet.digraph.add_edges_from([(1, 2), (1, 3)])
         # leaves that will be updated whenever the leaves change
-        leaves = list()
-        leaves.extend([2, 3])
-        
+        leaves = list([2,3])
         # node and leave counter
         node_counter = 4
         leave_counter = 2

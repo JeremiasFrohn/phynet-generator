@@ -14,6 +14,7 @@ class PhyNetwork:
         self.leaves = self.create_leave_set()
         self.reachables_by_node = self.create_node_dict()
         self.clusters_by_node = self.create_cluster_dict()
+        self.hybrid_nodes = self.hybrid_nodes()
         self.root = self.find_root()
         self.clustering_system = self.create_clustering_system()
         #clustering system
@@ -83,6 +84,13 @@ class PhyNetwork:
         for node in self.digraph.nodes:
             if self.digraph.in_degree(node) == 0:
                 return node
+
+    def hybrid_nodes(self): 
+        hybrid_nodes = list()
+        for node in self.digraph.nodes:
+            if self.digraph.out_degree(node) > 1:
+                hybrid_nodes.append(node)
+        return hybrid_nodes
         
         
     def overlap_graph(self):

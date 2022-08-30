@@ -106,20 +106,20 @@ spec_G.add_edge(1,2)
 spec_G.add_edge(1,3)
 spec_pos = vt.topo_pos(spec_G)
 
-# nx.draw_networkx(
-#     G,
-#     pos = pos4,
-#     arrows=True,
-#     with_labels=True,
-#     node_color = color_map,
-# )
-
 nx.draw_networkx(
-    spec_G,
-    pos = spec_pos,
+    G,
+    pos = pos4,
     arrows=True,
     with_labels=True,
+    node_color = color_map,
 )
+
+# nx.draw_networkx(
+#     spec_G,
+#     pos = spec_pos,
+#     arrows=True,
+#     with_labels=True,
+# )
 
 plt.savefig("Graph.png", format="png")
 # plt.figure(2)

@@ -11,23 +11,25 @@ class Simulator:
     def __init__(self):
         self.phyNet = pn.PhyNetwork(nx.DiGraph())
 
-    def simulate(self, n, s, h, mtype_rate, ntype_rate):
+
+    # weight, oder h raus und m type und n type sind die summen 
+    def simulate(self, n, s, h, mtype_weight, ntype_weight):
         # initalize Graph with root and one specialization
         self.phyNet.digraph.add_edges_from([(1, 2), (1, 3)])
         # leaves that will be updated whenever the leaves change
-        leaves = list([2,3])
+        leaves = list()
+        leaves.extend([2,3])
         # node and leave counter
         node_counter = 4
         leave_counter = 2
-        # sum of all hybridization rates for
-        rate_sum = ntype_rate + mtype_rate 
+        # sum of all hybridization weights for
+        weight = ntype_weight + mtype_weight 
         # specialization and hybridization process
         while len(leaves) < n:
             # specialization
             rdm = random.random()
             rdm2 = random.random()
             if rdm <= s / (h + s):
-                print("added specialisation")
                 x = random.choice(leaves)
                 self.phyNet.digraph.add_edges_from([(x, node_counter), (x, node_counter + 1)])
                 leaves.remove(x)
@@ -35,8 +37,7 @@ class Simulator:
                 leave_counter += 2
                 node_counter = node_counter + 2
             # n_type hybridization
-            elif rdm2 <= ntype_rate / rate_sum:
-                print("added ntype")
+            elif rdm2 <= ntype_weight / weight:
                 xy = random.sample(leaves, 2)
                 leaves.remove(xy[0])
                 leaves.remove(xy[1])
@@ -47,7 +48,6 @@ class Simulator:
                 node_counter = node_counter + 2
             # m_type hybridization
             else:
-                print("added mtype")
                 xy = random.sample(leaves, 2)
                 leaves.remove(xy[0])
                 leaves.remove(xy[1])
@@ -63,8 +63,6 @@ class Simulator:
                 )
                 node_counter = node_counter + 3
                 leave_counter += 1
-        print("Edgelist sim Graph")
-        print(self.phyNet.digraph.edges)
         return self.phyNet.digraph
 
     def simulate_by_tree(self, n, k):
@@ -75,8 +73,6 @@ class Simulator:
         
         for i in range(k):
             self.add_edge_random()
-        print("Edgelist sim by tree Graph")
-        print(self.phyNet.digraph.edges)
         
         return self.phyNet.digraph
 
@@ -85,17 +81,15 @@ class Simulator:
         edges = list()
         if subgraph_edges is not None:
             edges = list(subgraph_edges)
-            print(edges)
         else:
             edges = [e for e in self.phyNet.digraph.edges]
         # sample
-        e1 = random.choice(edges)
-        e2 = random.choice(edges)
+        e1,e2 = random.sample(edges,2)
         max_node= max([node for node in self.phyNet.digraph.nodes()])
         v1 = max_node + 1
         v2 = v1 + 1
 
-        self.phyNet.digraph.remove_edges_from([e1, e2])
+        self.phyNet.digraph.remove_edges_from([e1, e2]) 
         self.phyNet.digraph.add_edges_from([(e1[0], v1), (v1, e1[1])])
         self.phyNet.digraph.add_edges_from([(e2[0], v2), (v2, e2[1])])
 
@@ -116,7 +110,7 @@ class Simulator:
             self.phyNet.digraph.add_edge(edge[0].label, edge[1].label)
 
         #list all non binary nodes
-        nonbinary_nodes = [node for node in self.phyNet.digraph.nodes() if self.phyNet.digraph.out_degree(node) > 2]
+        nonbinary_nodes = [node for node in self.phyNet.digraph.nodes if self.phyNet.digraph.out_degree(node) > 2]
        
 
         for non_binary_node in nonbinary_nodes:

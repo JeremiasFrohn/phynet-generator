@@ -1,27 +1,35 @@
-from itertools import chain, combinations, permutations
-def _powerset(iterable, allow_empty_set = True): 
-    s = set(iterable)
-    if allow_empty_set:
-        return set(chain.from_iterable(combinations(s, r) for r in range(len(s)+1)))
-    else: 
-        return [set(subset) for subset in chain.from_iterable(combinations(s, r) for r in range(1,len(s)+1))]
+import Simulator
+import PhyNetAnalyser
+import matplotlib.pyplot as plt
+import vistools as vt
+import networkx as nx
+import csv
 
-""" 
-for element in _powerset(set([1,2,3,4]), allow_empty_set=False):
-    print(element)
-    print(set([1]).intersection(element))
+def not_binary():
+    no_binary_not_found = True
+    while no_binary_not_found:
+        simulator = Simulator.Simulator()
+        G = simulator.simulate_by_tree(20,5)
+        ana_G = PhyNetAnalyser.PhyNetAnalyser(G)
 
-print(_powerset(set([1,2,3,4]), allow_empty_set=False))
-print(set.intersection(*(_powerset([1,2,3,4], allow_empty_set=False))))
+        if not ana_G.is_binary() :
+            no_binary_not_found = False
 
+            color_map = []
 
-print(set([1])) """
-clustering_system = [set([1,2,4]), set([1,3]),set([1]), set([3])]
-for triple in permutations(clustering_system, 3):
-    print(triple)
+            for node in G: 
+                if node in ana_G.phyNet.hybrid_nodes():
+                    color_map.append('red')
+                else:
+                    color_map.append('blue')
+            print(G.edges)
+            nx.draw_networkx(
+                G,
+                pos = vt.topo_pos(G),
+                arrows=True,
+                with_labels=True,
+                node_color = color_map
+            )
+            plt.show()
 
-
-print(set([1]).__eq__(set([1])))
-
-
-print(set() in {frozenset()})
+not_binary()

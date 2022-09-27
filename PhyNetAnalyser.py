@@ -1,6 +1,7 @@
+from enum import unique
 from xml.dom.minidom import Element
 import networkx as nx
-from itertools import chain, combinations, permutations
+from itertools import chain, combinations, permutations, count
 import PhyNetwork as pn
 
 
@@ -9,20 +10,20 @@ class PhyNetAnalyser:
         #self.tree_child = None
         #self.shortcut_free = None
         self.phyNet = pn.PhyNetwork(G)
-        self.is_pcc = None
-        self.is_shortcut_free = None
-        self.is_tree_child = None 
-        self.level_k = None
-        self.is_semi_regular = None
+        self._is_pcc = None
+        self._is_shortcut_free = None
+        self._is_tree_child = None 
+        self._level_k = None
+        self._is_semi_regular = None
+        self._is_prebinary = None
         
     def is_tree(self):    
-        for node in self.phyNet.digraph.nodes:
-            if self.phyNet.digraph.in_degree(node) > 1:
-                return True
-        return False
+        if self.phyNet.hybrid_nodes():
+                return False
+        return True
 
     def is_phylogenetic(self):
-        if self.phyNet.root is None: 
+        if self.phyNet.root() is None: 
             return False
         for node in self.phyNet.digraph.nodes:
             if self.phyNet.digraph.out_degree(node) == 1 and self.phyNet.digraph.in_degree(node) <= 1:
@@ -31,8 +32,8 @@ class PhyNetAnalyser:
 
 
     def level_k(self):
-        if self.level_k is not None:
-            return self.level_k
+        if self._level_k is not None:
+            return self._level_k
 
         max_hybrids = 0
         for biconnect_component in nx.biconnected_components(nx.Graph(self.phyNet.digraph.to_undirected())):
@@ -44,14 +45,14 @@ class PhyNetAnalyser:
                     current_hybrid_counter = current_hybrid_counter + 1
             if current_hybrid_counter > max_hybrids:
                 max_hybrids = current_hybrid_counter
-        self.level_k = max_hybrids
+        self._level_k = max_hybrids
         return max_hybrids
 
 
 
     def is_tree_child(self):
-        if self.is_tree_child is not None: 
-            return self.is_tree_child
+        if self._is_tree_child is not None: 
+            return self._is_tree_child
 
         tree_child = True
         
@@ -66,71 +67,56 @@ class PhyNetAnalyser:
                         break
                 if not tree_child:
                     break
-        self.is_tree_child = tree_child
+        self._is_tree_child = tree_child
         return tree_child
 
 
     def is_pcc(self):
         # check if pcc property has already been calculated 
-        if self.is_pcc is not None: 
-            return self.is_pcc
+        if self._is_pcc is not None: 
+            return self._is_pcc
 
-        self.is_pcc = False
-        for pair in permutations(self.phyNet.digraph.nodes):
+        self._is_pcc = False
+        reachables_by_node = self.phyNet.reachables_by_node()
+        clusters_by_node = self.phyNet.clusters_by_node()
+        for node1, node2 in combinations(self.phyNet.digraph.nodes,2):
             # check if nodes are comparable
             if (
-                pair[0] in self.phyNet.reachables_by_node[pair[1]]
-                or pair[1] in self.phyNet.reachables_by_node[pair[0]]
+                node1 in reachables_by_node[node2]
+                or node2 in reachables_by_node[node1]
             ):
                 # if the nodes are comparable then check for subset condition
-                if (
-                    self.phyNet.clusters_by_node[pair[0]] <= self.phyNet.clusters_by_node[pair[1]]  
-                    or self.phyNet.clusters_by_node[pair[1]] <= self.phyNet.clusters_by_node[pair[0]]
-                ):
-                    # if comparable and subset continue
-                    continue
-                else:
-                    # if comparable but not subset graph is no pcc
-                    print(self.phyNet.reachables_by_node)
-                    print("comparable nodes where subset condition fails")
-                    print([pair[0],pair[1]])
-                    self.is_pcc = False
-                    return False
+                continue
             else: 
                 # if nodes are not comparable check for subset
                 if (
-                    self.phyNet.clusters_by_node[pair[0]] <= self.phyNet.clusters_by_node[pair[1]] 
-                    or self.phyNet.clusters_by_node[pair[1]] <= self.phyNet.clusters_by_node[pair[0]]
+                    clusters_by_node[node1] <= clusters_by_node[node2] 
+                    or clusters_by_node[node2] <= clusters_by_node[node1]
                 ):
                     # if subset but not comparable graph is no pcc else continue 
-                    print(self.phyNet.reachables_by_node)
-                    print("non comparable nodes where subset condition is true")
-                    print([pair[0],pair[1]])
-                    self.is_pcc = False
+                    self._is_pcc = False
                     return False
-        self.is_pcc = True
+        self._is_pcc = True
         return True 
     
     def is_shortcut_free(self):
-        if self.is_shortcut_free is not None: 
-            return self.is_shortcut_free
+        if self._is_shortcut_free is not None: 
+            return self._is_shortcut_free
 
-        self.is_shortcut_free = False
-        for node in self.phyNet.digraph.nodes:
-            # iterate over hybrid nodes only
-            if self.phyNet.digraph.in_degree(node) >= 2:
-                predecessors = self.phyNet.digraph.predecessors(node)
-                for predecessor in predecessors:
-                    for child in self.phyNet.digraph.successors(predecessor):
-                    # check for every predecessor of the hybrid node if there is a child that is not the hybrid node itself
-                    # but there is also a path from the child of the predecessor to the hybrid node
-                        if child is not node and nx.has_path(self.phyNet.digraph, child, node) :
-                            return False     
-        self.is_shortcut_free = True                   
+        self._is_shortcut_free = False
+
+        reachables_by_node = self.phyNet.reachables_by_node()
+        for node in self.phyNet.hybrid_nodes():
+            #check parent nodes
+            parent_nodes = self.phyNet.digraph.predecessors(node)
+            for parent1, parent2 in combinations(parent_nodes,2): 
+                if parent1 in reachables_by_node[parent2] or parent2 in reachables_by_node[parent1]:
+                    return False
+        self._is_shortcut_free = True                   
         return True 
         
 
-    def is_normal(self,G):
+    def is_normal(self):
         if self.is_shortcut_free() and self.is_tree_child():
             return True
         else:
@@ -138,14 +124,14 @@ class PhyNetAnalyser:
 
 
     def is_semi_regular(self):
-        if self.is_semi_regular is not None: 
-            return self.is_semi_regular
+        if self._is_semi_regular is not None: 
+            return self._is_semi_regular
 
         if self.is_shortcut_free() and self.is_pcc():
-            self.is_semi_regular = True
+            self._is_semi_regular = True
             return True
         else:
-            self.is_semi_regular = False
+            self._is_semi_regular = False
             return False
     
     def is_regular(self):
@@ -154,25 +140,24 @@ class PhyNetAnalyser:
             for node in self.phyNet.digraph.nodes:
                 if self.phyNet.digraph.out_degree(node) == 1:
                     return False
-        return True
+            return True
+        return False
 
 
     def is_separated(self):
         # if rausziehen
-        for node in [node for node in self.phyNet.digraph.nodes if self.phyNet.digraph.in_degree(node) >= 2] :
+        for node in self.phyNet.hybrid_nodes():
             if not self.phyNet.digraph.out_degree(node) == 1:
                 return False
         return True
     
     def is_binary(self):
-        # hybrid mit in 3 
-        for node in [node for node in self.phyNet.digraph.nodes if self.phyNet.digraph.in_degree(node) <= 1]:
-            if not self.phyNet.digraph.out_degree(node) in [0,2]:
+        for node in self.phyNet.digraph.nodes:
+            node_in = self.phyNet.digraph.in_degree(node)
+            node_out = self.phyNet.digraph.out_degree(node)
+            if (node_in,node_out) not in {(0,2),(1,0),(2,1),(1,2)}:
                 return False
-        if self.is_separated():
-            return True
-        else:
-            return False
+        return True
 
     # Proposition 4.23 
     def is_cluster_network(self):
@@ -187,97 +172,171 @@ class PhyNetAnalyser:
 
     #Corollary 8.5
     def is_galled_tree(self):
+
         if self.level_k() == 1:
-            for node in self.phyNet.digraph.nodes:
+            for node in self.phyNet.hybrid_nodes():
                 if self.phyNet.digraph.in_degree(node) != 2:
                     return False
-        return True
+            return True
+        return False
 
 
     def is_conventional(self):
         for leave in self.phyNet.leaves():
-            if self.phyNet.digraph.in_degree(leave) != 1:
+            if self.phyNet.digraph.in_degree(leave) > 1:
                 return False
-        is_conventional = False
+
         # nx.biconnected_components yields sets of nodes, so they must contain more than two nodes to be non trivial 
-        non_trivial_blocks = [bcc for bcc in nx.biconnected_components(nx.to_undirected(self.phyNet.digraph)) if len(bcc) >= 2]
-        for hybrid_node in self.phyNet.hybrid_nodes:
-            # check if hybrid node is in non_trivial_block
-            is_conventional = False
+        non_trivial_blocks = [bcc for bcc in nx.biconnected_components(nx.to_undirected(self.phyNet.digraph)) if len(bcc) > 2]
+        for hybrid_node in self.phyNet.hybrid_nodes():
+            # check if hybrid node is in unique  non_trivial_block
+            unique = True
+            # muss unique sein ! 
             for non_trivial_block in non_trivial_blocks: 
                 if hybrid_node in non_trivial_block:
                     #continue with next hybrid node
-                    is_conventional = True
-                    break
-        return is_conventional
+                    if unique:
+                        unique = False
+                    else:
+                        return False
+                    
+        return True
 
 
     def is_quasi_binary(self):
         # in = 2 and out = 1 for every hybrid 
-        for hybrid_node in self.phyNet.hybrid_nodes:
-            if self.phyNet.digraph.out_degree(hybrid_node) != 1:
+        for hybrid_node in self.phyNet.hybrid_nodes():
+            if self.phyNet.digraph.out_degree(hybrid_node) != 1 or self.phyNet.digraph.in_degree(hybrid_node) != 2:
                 return False
 
         # out (max B) = 2 for every non trivial block B 
-        non_trivial_blocks = [bcc for bcc in nx.biconnected_components(nx.to_undirected(self.phyNet.digraph)) if len(bcc) >= 2]
+        non_trivial_blocks = [bcc for bcc in nx.biconnected_components(nx.to_undirected(self.phyNet.digraph)) if len(bcc) > 2]
         for non_trivial_block in non_trivial_blocks:
-            for node in non_trivial_blocks:
+            for node in non_trivial_block:
                 if set(self.phyNet.digraph.predecessors(node)).isdisjoint(non_trivial_block):
                      if self.phyNet.digraph.out_degree(node) != 2:
                         return False
         return True
 
-
-
-
+    #no pairwise overlapping clusters 
+    def is_hierarchy(self):
+        return nx.is_empty(self.phyNet.overlap_graph())
 
     # lemma 3.30
-    # clustering system cl is closed if and only if A,B in cl and a intersection b not empty implies a intersection b in cl
+    # clustering system cl is closed if and only if A,B in CL AND A.intersection(B) not empty implies A.intersection(B) CL
     def is_closed(self):
-        clustering_system = self.phyNet.clustering_system
-        clustering_system_with_empty_set = clustering_system.union(set(set()))
-        subsets_cs = self._powerset(clustering_system, allow_empty_set=False)
-        for subset in subsets_cs: 
-            if set.intersection(*[set(element) for element in subset]) not in clustering_system_with_empty_set:
+        # A and B in clustering system
+        for cluster_A, cluster_B in combinations(self.phyNet.clustering_system(), 2):
+            # if clusters A and B are not disjoint
+            if not cluster_A.isdisjoint(cluster_B):
+                # intersection of A and B is not in the clustering system
+                if cluster_A.intersection(cluster_B) not in self.phyNet.clustering_system():
+                    return False
+        return True
+
+
+    #Hasse Diagramm, for every leaf check if x,y is subset
+    #for every x,y there is an inclusion minimal c with x,y subset of c
+    def is_prebinary(self):
+        if self._is_prebinary is not None:
+            return self._is_prebinary
+
+        G = self.phyNet.hasse_diagram()
+        for leaf_pair in combinations(self.phyNet.leaves(),2):
+            found = False
+            for node in G.nodes:
+                # length
+                leaf_pair_set = set(leaf_pair)
+                if leaf_pair_set.issubset(node):
+                    if not [child for child in G.successors(node) if leaf_pair_set.issubset(child)]:
+                        if found:
+                            self._is_prebinary = False
+                            return False
+                        found = True
+            if not found:
+                self._is_prebinary = False
+                return False   
+        self._is_prebinary = True  
+        return True
+                        
+
+
+    def is_binary_cl(self):
+        if not self.is_prebinary():
+            return False
+
+        G = self.phyNet.hasse_diagram()
+        found_pairs = set()
+        for node in G:
+            #skip singletons
+            if len(node) == 1:
+                continue
+            #clusters with two leaves x,y are inclusion minimal for x,y
+            if len(node) == 2:
+                continue
+            found = False
+            for leaf_pair in combinations(node,2):
+                # skip singletons 
+                if not [child for child in G.successors(node) if set(leaf_pair).issubset(child)]:
+                    found = True
+                    break
+            if not found:
+                return False
+        return True
+
+    def is_weak_hierarchy(self):
+        for triple in combinations(self.phyNet.clustering_system(), 3): 
+            intersectionC1_C2 = frozenset(triple[0].intersection(triple[1]))
+            intersectionC1_C3 = frozenset(triple[0].intersection(triple[2]))
+            intersectionC2_C3 = frozenset(triple[1].intersection(triple[2]))
+            if (intersectionC1_C2.intersection(triple[2])
+                in set([intersectionC1_C2, intersectionC2_C3, intersectionC1_C3,frozenset()])):
+                continue
+            else:
                 return False
         return True
 
     #overlap graph
     def is_L(self):
-        clustering_system = set([frozenset(cluster) for cluster in self.phyNet.clusters_by_node.values()])
-        for triple in permutations(clustering_system, 3):
-            if (
-                triple[0].intersection(triple[1]) not in {frozenset(), triple[0], triple[1]} 
-                and triple[0].intersection(triple[2]) not in {frozenset(), triple[0], triple[2]}
-            ):
-                if triple[0].intersection(triple[1]) == triple[0].intersection(triple[2]):
-                    return False
-        return True
-    
-    def hasse_diagramm(self):
-        G = nx.DiGraph()
-        for pair in permutations(self.phyNet.clusters_by_node.values(),2):
-            if pair[0].issubset(pair[1]) and pair[0] != pair [1]:
-                skip = [pair[0], pair[1]]
-                found_cluster_between = False
-                for cluster in self.phyNet.clusters_by_node.values():
-                    if cluster in skip:
+        overlap_graph = self.phyNet.overlap_graph()
+        for node in overlap_graph.nodes:
+            neighbors = [neighbor for neighbor in overlap_graph.neighbors(node)]
+            if len(neighbors) >=2:
+                # edge data cluster of node and first neighbor
+                overlap = overlap_graph[node][neighbors[0]]['overlap']
+                for i in range(1,len(neighbors)):
+                    if overlap == overlap_graph[node][neighbors[i]]['overlap']:
                         continue
-                    elif (cluster.issubset(pair[1]) and pair[0].issubset(cluster)):
-                        found_cluster_between = True
-                if not found_cluster_between:
-                    G.add_edge(frozenset(pair[1]),frozenset(pair[0]))
-        return G
+                    else:
+                        return False          
+        return True
+
+
+    def is_N30(self):
+        # nx.triangles returns dictionary with count of all triangles for every node in G, a triangle is counted three times
+        for value in nx.triangles(self.phyNet.overlap_graph()).values():
+            if value != 0:
+                return False
+        return True
+
+    # every cluster overlaps with at most one other cluster 
+    def is_paired_hierarchy(self):
+        overlap_graph = self.phyNet.overlap_graph()
+        for node in overlap_graph:
+            if overlap_graph.degree(node) > 1:
+                return False
+        return True
+
+    def is_2_inc(self): 
+        G = self.phyNet.hasse_diagram()
+        # in and out at max 2 
+        for node in G.nodes:
+            if G.out_degree(node) <= 2 and G.in_degree(node) <= 2:
+                continue
+            else:
+                return False 
+        return True 
         
-
-    def _powerset(self, iterable, allow_empty_set:bool = True): 
-        s = set(iterable)
-        if allow_empty_set:
-            return [set(subset) for subset in chain.from_iterable(combinations(s, r) for r in range(len(s)+1))]
-        else: 
-            return [set(subset) for subset in chain.from_iterable(combinations(s, r) for r in range(1,len(s)+1))]
-
-
 
 
 

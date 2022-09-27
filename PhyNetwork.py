@@ -1,6 +1,6 @@
 from copy import copy
 import networkx as nx
-from itertools import combinations
+from itertools import combinations, permutations
 
 
 class PhyNetwork:
@@ -11,12 +11,14 @@ class PhyNetwork:
             self.digraph.add_edges_from(G.edges)
             self.digraph.add_nodes_from(G.nodes)
 
-        self.leaves = self.create_leave_set()
-        self.reachables_by_node = self.create_node_dict()
-        self.clusters_by_node = self.create_cluster_dict()
-        self.hybrid_nodes = self.hybrid_nodes()
-        self.root = self.find_root()
-        self.clustering_system = self.create_clustering_system()
+        self._leaves = None
+        self._reachables_by_node = None
+        self._clusters_by_node = None
+        self._hybrid_nodes = None
+        self._root = None
+        self._clustering_system = None
+        self._overlap_graph = None
+        self._hasse_diagram = None
         #clustering system
 
 
@@ -46,79 +48,110 @@ class PhyNetwork:
         return reachable_nodes
         
                 
-    def create_node_dict(self):
+    def reachables_by_node(self):
+        if self._reachables_by_node is not None: 
+            return self._reachables_by_node
+
         reachables_by_node = dict()
         for node in self.digraph.nodes:
             reachables_by_node[node] = self.reachable_nodes(node)
+
+        self._reachables_by_node = reachables_by_node
         return reachables_by_node
 
     
-    def create_cluster_dict(self):
+    def clusters_by_node(self):
+        if self._clusters_by_node is not None: 
+            return self._clusters_by_node
+
         clusters_by_node = dict() 
-        for node, reachables in self.reachables_by_node.items():
+        for node, reachables in self.reachables_by_node().items():
             reachable_leaves = set()
             for reachable in reachables: 
-                if self.digraph.out_degree(reachable) == 0:
+                if reachable in self.leaves():
                     reachable_leaves.add(reachable)
             clusters_by_node[node] = reachable_leaves
+
+        self._clusters_by_node = clusters_by_node
         return clusters_by_node
 
-    def create_leave_set(self): 
-        return set([leave for leave in self.digraph.nodes if self.digraph.out_degree(leave) == 0])
+    def leaves(self): 
+        if self._leaves is not None: 
+            return self._leaves
 
+        leaves = set([leave for leave in self.digraph.nodes if self.digraph.out_degree(leave) == 0])
 
-    def leaves(self):
-        for node in self.digraph.nodes:
-            if self.digraph.out_degree(node) == 0:
-                yield node
-
-
-    def cluster(self, n):
-        #generate all leaves reachable from node n 
-        for node in self.reachable_nodes(n):
-            if self.digraph.out_degree(node) == 0:
-                yield node
+        self._leaves = leaves
+        return leaves
     
 
-    def find_root(self):
+    def root(self):
+        if self._root is not None: 
+            return self._root
+
         for node in self.digraph.nodes:
             if self.digraph.in_degree(node) == 0:
+                self._root = node
                 return node
 
     def hybrid_nodes(self): 
+        if self._hybrid_nodes is not None:
+            return self._hybrid_nodes
+
         hybrid_nodes = list()
         for node in self.digraph.nodes:
-            if self.digraph.out_degree(node) > 1:
+            if self.digraph.in_degree(node) > 1:
                 hybrid_nodes.append(node)
+
+        self._hybrid_nodes = hybrid_nodes
         return hybrid_nodes
         
         
     def overlap_graph(self):
-        if self.clusters_by_node is None: 
-            self.create_cluster_dict()
+        if self._overlap_graph is not None:
+            return self._overlap_graph
 
         G = nx.Graph()
-        for cluster_pair in combinations(self.clusters_by_node.values(),2 ) : 
+        for cluster_pair in combinations(self.clustering_system(),2): 
             intersection = cluster_pair[0].intersection(cluster_pair[1])
             #overlap condition 
             if intersection not in [set(), cluster_pair[0], cluster_pair[1]]: 
                 # add edge between two clusters if they overlap
-                G.add_edge(frozenset(cluster_pair[0]), frozenset(cluster_pair[1]), overlap = intersection)
+                G.add_edge(cluster_pair[0], cluster_pair[1], overlap = set(intersection))
 
-        print("overlap graph")
-        
-        print(G.edges)
-        nx.get_edge_attributes(G, "overlap")
+        self._overlap_graph = G
         return G
     
         
-    def create_clustering_system(self): 
-        if self.clusters_by_node is None: 
-            self.clusters_by_node = self.create_cluster_dict
-        
+    def clustering_system(self): 
+        if self._clustering_system is not None:
+            return self._clustering_system
+
         clustering_system = set()
-        for cluster in self.clusters_by_node.values(): 
+        for cluster in self.clusters_by_node().values(): 
             clustering_system.add(frozenset(cluster))
         
+        self._clustering_system = clustering_system
         return clustering_system
         
+
+    def hasse_diagram(self):
+        if self._hasse_diagram is not None:
+            return self._hasse_diagram
+
+        G = nx.DiGraph()
+        
+        for pair in permutations(self.clusters_by_node().values(),2):
+            if pair[0].issubset(pair[1]) and pair[0] != pair [1]:
+                skip = [pair[0], pair[1]]
+                found_cluster_between = False
+                for cluster in self.clusters_by_node().values():
+                    if cluster in skip:
+                        continue
+                    elif (cluster.issubset(pair[1]) and pair[0].issubset(cluster)):
+                        found_cluster_between = True
+                if not found_cluster_between:
+                    G.add_edge(frozenset(pair[1]),frozenset(pair[0]))
+       
+        self._hasse_diagram = G
+        return G

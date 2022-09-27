@@ -1,0 +1,233 @@
+from unittest import result
+import Simulator
+import PhyNetAnalyser
+import matplotlib.pyplot as plt
+import vistools as vt
+import networkx as nx
+import csv
+
+def no_weak_hierarchy():
+    no_weak_not_found = True
+    while(no_weak_not_found):
+        simulator = Simulator.Simulator()
+        G = simulator.simulate(4, 1, 2, 1, 1)
+        ana_G = PhyNetAnalyser.PhyNetAnalyser(G)
+
+        if not ana_G.is_weak_hierarchy() :
+            no_weak_not_found = False
+
+            color_map = []
+
+            for node in G: 
+                if node in ana_G.phyNet.hybrid_nodes():
+                    color_map.append('red')
+                else:
+                    color_map.append('blue')
+            print(G.edges)
+            nx.draw_networkx(
+                G,
+                pos = vt.topo_pos(G),
+                arrows=True,
+                with_labels=True,
+                node_color = color_map
+            )
+            plt.show()
+
+
+def simulate_multiple_topdown(iterations, n, s, h, mtype, ntype):
+    data = {"Closed": 0, "Hierarchy": 0, "(L)": 0,
+     "(N3O)": 0, "PCC": 0, "Binary": 0, "Separated": 0, "Shortcut_free":0,
+     "Regular": 0,"Semi-regular":0,"Tree_child": 0, "Normal": 0, "Galled_tree": 0,"Conventional":0,
+     "Quasi_binary":0,"Cluster_network":0,"Prebinary":0, "Binary_cs": 0, "Weak_hierarchy":0,"Paired_hierarchy":0,"(2_Inc)":0}
+    
+    level = list()
+
+
+    for i in range(iterations):
+        #print(i)
+        simulator = Simulator.Simulator()
+        G = simulator.simulate(n, s, h, mtype, ntype)
+        ana_G = PhyNetAnalyser.PhyNetAnalyser(G)
+        # print("---------------------------------")
+        # nodeoutin=list()
+        # for node in ana_G.phyNet.digraph.nodes:
+        #     nodeoutin.append((ana_G.phyNet.digraph.out_degree(node),ana_G.phyNet.digraph.in_degree(node)))
+        # print(nodeoutin)   
+        
+        if ana_G.is_closed():
+            data["Closed"] += 1
+        
+        if ana_G.is_hierarchy():
+            data["Hierarchy"] += 1
+        
+        if ana_G.is_L():
+            data["(L)"] += 1
+
+        if ana_G.is_N30():
+            data["(N3O)"] += 1
+        
+        if ana_G.is_pcc():
+            data["PCC"] += 1
+
+        level.append(ana_G.level_k())
+        
+        if ana_G.is_binary():
+            data["Binary"] += 1
+
+        if ana_G.is_separated():
+            data["Separated"] += 1
+
+        if ana_G.is_shortcut_free():
+            data["Shortcut_free"] += 1
+
+        if ana_G.is_regular():
+            data["Regular"] += 1
+        
+        if ana_G.is_semi_regular(): 
+            data["Semi-regular"] += 1
+
+        if ana_G.is_tree_child(): 
+            data["Tree_child"] += 1
+
+        if ana_G.is_normal(): 
+            data["Normal"] += 1
+
+        if ana_G.is_galled_tree(): 
+            data["Galled_tree"] += 1
+
+        if ana_G.is_conventional():
+            data["Conventional"] += 1
+
+        if ana_G.is_quasi_binary(): 
+            data["Quasi_binary"] += 1
+        
+        if ana_G.is_cluster_network():
+            data["Cluster_network"] += 1
+
+        if ana_G.is_weak_hierarchy(): 
+            data["Weak_hierarchy"] += 1
+
+        if ana_G.is_paired_hierarchy(): 
+            data["Paired_hierarchy"] += 1
+
+        if ana_G.is_2_inc(): 
+            data["(2_Inc)"] += 1
+
+        if ana_G.is_prebinary():
+            data["Prebinary"] += 1
+
+        if ana_G.is_binary_cl():
+            data["Binary_cs"] += 1
+        
+    return [data, level]
+
+def simulate_multiple_tree_based(iterations, n, k):
+    data = {"Closed": 0, "Hierarchy": 0, "(L)": 0,
+     "(N3O)": 0, "PCC": 0, "Binary": 0, "Separated": 0, "Shortcut_free":0,
+     "Regular": 0,"Semi-regular":0,"Tree_child": 0, "Normal": 0, "Galled_tree": 0,"Conventional":0,
+     "Quasi_binary":0,"Cluster_network":0,"Prebinary":0, "Binary_cs": 0, "Weak_hierarchy":0,"Paired_hierarchy":0,"(2_Inc)":0}
+    
+    level = list()
+
+    for i in range(iterations):
+        #print(i)
+        simulator = Simulator.Simulator()
+        G = simulator.simulate_by_tree(n, k)
+        ana_G = PhyNetAnalyser.PhyNetAnalyser(G)
+        # print("---------------------------------")
+        # nodeoutin=list()
+        # for node in ana_G.phyNet.digraph.nodes:
+        #     nodeoutin.append((ana_G.phyNet.digraph.out_degree(node),ana_G.phyNet.digraph.in_degree(node)))
+        # print(nodeoutin)   
+        
+        if ana_G.is_closed():
+            data["Closed"] += 1
+        
+        if ana_G.is_hierarchy():
+            data["Hierarchy"] += 1
+        
+        if ana_G.is_L():
+            data["(L)"] += 1
+
+        if ana_G.is_N30():
+            data["(N3O)"] += 1
+        
+        if ana_G.is_pcc():
+            data["PCC"] += 1
+
+        level.append(ana_G.level_k())
+        
+        if ana_G.is_binary():
+            data["Binary"] += 1
+
+        if ana_G.is_separated():
+            data["Separated"] += 1
+
+        if ana_G.is_shortcut_free():
+            data["Shortcut_free"] += 1
+
+        if ana_G.is_regular():
+            data["Regular"] += 1
+        
+        if ana_G.is_semi_regular(): 
+            data["Semi-regular"] += 1
+
+        if ana_G.is_tree_child(): 
+            data["Tree_child"] += 1
+
+        if ana_G.is_normal(): 
+            data["Normal"] += 1
+
+        if ana_G.is_galled_tree(): 
+            data["Galled_tree"] += 1
+
+        if ana_G.is_conventional():
+            data["Conventional"] += 1
+
+        if ana_G.is_quasi_binary(): 
+            data["Quasi_binary"] += 1
+
+        if ana_G.is_cluster_network():
+            data["Cluster_network"] += 1
+
+        if ana_G.is_weak_hierarchy(): 
+            data["Weak_hierarchy"] += 1
+
+        if ana_G.is_paired_hierarchy(): 
+            data["Paired_hierarchy"] += 1
+
+        if ana_G.is_2_inc(): 
+            data["(2_Inc)"] += 1
+
+        if ana_G.is_prebinary():
+            data["Prebinary"] += 1
+
+        if ana_G.is_binary_cl():
+            data["Binary_cs"] += 1
+        
+    return list(data, level)
+
+result_set = simulate_multiple_topdown(1000, 40, 2,1,1,1)
+dict = result_set[0]
+level_liste = result_set[1]
+#dict = simulate_multiple_tree_based(1000, 20, 5)
+for key,value in dict.items():
+    print(key, value)
+with open('daten.csv', 'w', encoding='utf-8') as csv_schreib_datei:
+    writer = csv.writer(csv_schreib_datei, delimiter=',')
+    zeile = []
+    for key in dict.keys():
+        zeile.append(key)
+    writer.writerow(zeile)
+    zeile = []
+    for value in dict.values():
+        zeile.append(value)
+    writer.writerow(zeile)
+    
+    zeile = []
+    for level in level_liste:
+        zeile.append(level)
+    writer.writerow(zeile)
+ 
+
+

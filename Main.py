@@ -14,7 +14,7 @@ s1 = sim.Simulator()
 s2 = sim.Simulator()
 s3 = sim.Simulator()
 s4 = sim.Simulator()
-G = s1.simulate(5, 1, 2, 1, 1)
+G = s1.simulate(5, 1, 2, 0, 1)
 G2 = s2.simulate_by_tree(3,2)
 G3 = s3.simulate_non_binary(5, 0.8)
 G4 = s4.simulate_bcc(5, 0.8, level_k=1, binary=False)
@@ -40,14 +40,26 @@ pos4 = vt.topo_pos(G)
 
 
 print("G4")
-print(G)
 analyseG4 = pna.PhyNetAnalyser(G)
-print(G)
 print("Graph is closed:")
 print(analyseG4.is_closed())
+print(analyseG4.level_k())
 print("Graph is (L):")
 print(analyseG4.is_L())
-#overlap_G = analyseG4.phyNet.create_overlap_graph()
+print ("Clustering system is hierarchy: ")
+print( analyseG4.is_hierarchy())
+print("is prebinary")
+print(analyseG4.is_prebinary())
+print("is weak hierarchy")
+print(analyseG4.is_weak_hierarchy())
+print("is N30")
+print(analyseG4.is_N30())
+print("is binary cl")
+print(analyseG4.is_binary_cl())
+print("2 inc")
+print(analyseG4.is_2_inc())
+overlap_G = analyseG4.phyNet.overlap_graph()
+hasse = analyseG4.phyNet.hasse_diagram()
 #print("hasse diagramm ")
 #G5 = nx.DiGraph(analyseG4.hasse_diagramm())
 #print(G5.edges)
@@ -73,7 +85,6 @@ print(analyseG4.is_L())
 # for e1, e2 in pairwise(liste):
 #     print(str([e1,e2]))
 
-print("edges from g3 simulate non binary")
 print(s4.phyNet.digraph.edges())
 # plt.subplot(221)
 # nx.draw_networkx(
@@ -99,7 +110,7 @@ for node in G:
     else:
         color_map.append('blue')
 
-#plt.figure(1)
+plt.figure(1)
 
 spec_G = nx.DiGraph()
 spec_G.add_edge(1,2)
@@ -108,7 +119,7 @@ spec_pos = vt.topo_pos(spec_G)
 
 nx.draw_networkx(
     G,
-    pos = pos4,
+    pos = vt.topo_pos(G),
     arrows=True,
     with_labels=True,
     node_color = color_map,
@@ -121,18 +132,20 @@ nx.draw_networkx(
 #     with_labels=True,
 # )
 
-plt.savefig("Graph.png", format="png")
-# plt.figure(2)
-# pos = nx.spring_layout(overlap_G)
 
-# edge_labels = nx.get_edge_attributes(overlap_G,'overlap')
-# nx.draw_networkx_edge_labels(overlap_G, pos, edge_labels)
+plt.figure(2)
+pos = nx.spring_layout(overlap_G)
 
-# nx.draw_networkx(
-#     overlap_G,
-#     pos
-# )
+edge_labels = nx.get_edge_attributes(overlap_G,'overlap')
 
+nx.draw_networkx(overlap_G,pos)
+nx.draw_networkx_edge_labels(overlap_G, pos, edge_labels)
+
+plt.figure(3) 
+nx.draw_networkx(
+    hasse,
+    vt.topo_pos(hasse)
+)
 plt.axis('off')
 plt.show()
 
@@ -140,4 +153,7 @@ def simulate_multiple(n, nodes, s, h, mtype, ntype):
     s = sim.Simulator()
     G = nx.DiGraph()
     G = s.simulate()
+
+
+
     

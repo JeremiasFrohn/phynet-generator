@@ -1,6 +1,3 @@
-
-from ast import List
-from asyncio.windows_events import NULL
 import asymmetree.treeevolve as te
 import networkx as nx
 import PhyNetwork as pn
@@ -12,8 +9,7 @@ class Simulator:
         self.phyNet = pn.PhyNetwork(nx.DiGraph())
 
 
-    # weight, oder h raus und m type und n type sind die summen 
-    def simulate(self, n, s, h, mtype_weight, ntype_weight):
+    def simulate_top_down(self, n, s, h, mtype_weight, ntype_weight):
         # initalize Graph with root and one specialization
         self.phyNet.digraph.add_edges_from([(1, 2), (1, 3)])
         # leaves that will be updated whenever the leaves change
@@ -65,7 +61,7 @@ class Simulator:
                 leave_counter += 1
         return self.phyNet.digraph
 
-    def simulate_by_tree(self, n, k):
+    def simulate_tree_based(self, n, k):
         tree = te.species_tree_n(n, planted=False)
         #node dict erstellen udn updaten zum hinzufügen von kanten
         for edge in tree.edges():
@@ -99,10 +95,12 @@ class Simulator:
         else:
             self.phyNet.digraph.add_edge(v1, v2)
 
-    def simulate_bcc(self, n, contraction_prob, binary, level_k = 1):
+    # LEVEL K SIMULATION, returns digraph
+
+    def simulate_level_k(self, n, contraction_prob, binary, level_k = 1):
         #catch error
         if level_k <= 0:
-            print("cant simulate level k smaller than 1")
+            print("cant simulate level k smaller than 0")
             return
         
         tree = te.species_tree_n(n, planted = False, contraction_probability = contraction_prob)
@@ -125,7 +123,6 @@ class Simulator:
             hybrid_node = node_counter + out_degree - 1
             nodes_to_add = [node for node in range(node_counter, node_counter+out_degree-1)]
             #slice
-            nodes_for_level_k = [node for node in nodes_to_add]
             nodes_for_children = [node for node in nodes_to_add]
             nodes_for_children.append(hybrid_node)
             lowest_nodes = list()
@@ -149,45 +146,44 @@ class Simulator:
                 lowest_nodes.append(random_node_to_add)
                 nodes_to_add.remove(random_node_to_add)
             
+            # remove root of the block from lowest nodes to ensure that shortcuts can appear only when nodes have been added on one path only
+            if non_binary_node in lowest_nodes and self.phyNet.digraph.out_degree(non_binary_node) >= 2:
+                lowest_nodes.remove(non_binary_node)
 
             for lowest_node in lowest_nodes:
                 self.phyNet.digraph.add_edge(lowest_node, hybrid_node)
             
+            # level_k 
+            # resolve edges
+            for i in range(level_k - 1):
+                self.add_edge_random(nx.edge_bfs(self.phyNet.digraph, non_binary_node))
+
             for node in nodes_for_children:
                 self.phyNet.digraph.add_edge(node, children.pop())
 
-            # level_k 
-            # kanten auflösen
-            for i in range(level_k - 1):
-                self.add_edge_random(nx.edge_bfs(self.phyNet.digraph, non_binary_node))
-                    
-
-
         return self.phyNet.digraph
 
-    def simulate_non_binary(self, n, contraction_prob):
+    # NON-BINARY SIMULATION, returns digraph
+
+    def simulate_non_binary(self, n, contraction_prob_base_tree, contraction_prob_added_trees):
         #non binary tree to digraph
-        print("create phyNet by Tree")
-        tree = te.species_tree_n(n, planted = False, contraction_probability = contraction_prob)
+        tree = te.species_tree_n(n, planted = False, contraction_probability = contraction_prob_base_tree)
         for edge in tree.edges():
             self.phyNet.digraph.add_edge(edge[0].label, edge[1].label)
 
-        # vorher liste der nb knoten machen 
+        # list of nonbinary nodes
         nonbinary_nodes = [node for node in self.phyNet.digraph.nodes() if self.phyNet.digraph.out_degree(node) > 2]
         node_counter = max([node for node in self.phyNet.digraph.nodes()]) + 1
         for node in nonbinary_nodes:
             # for node with outdegree > 2 create new tree 
             out_degree = self.phyNet.digraph.out_degree(node)
-            
-            print("Node with outdegree > 2 found")
-            print(out_degree)
             # remember the children of non binary node
             children = [child for child in self.phyNet.digraph.successors(node)]
             # remove edge to children
             for child in children:
                 self.phyNet.digraph.remove_edge(node, child)               
             #simulate tree that gets connected to the binary node
-            tree1 = te.species_tree_n( (out_degree - 1) , planted=False)
+            tree1 = te.species_tree_n( (out_degree - 1) , planted=False, contraction_probability = contraction_prob_added_trees)
             leaves_tree1 = list(tree1.leaves())
             #count nodes for the labels
             
@@ -207,7 +203,7 @@ class Simulator:
                 self.phyNet.digraph.add_edge(leave.label, children.pop())
 
             #simulate new tree with offset 
-            tree2 = te.species_tree_n((out_degree - 1), planted = False, contraction_probability = contraction_prob)
+            tree2 = te.species_tree_n((out_degree - 1), planted = False, contraction_probability = contraction_prob_added_trees)
             
             for tree_node in tree2.postorder():
                 if tree_node.is_leaf():
@@ -226,10 +222,14 @@ class Simulator:
 
 
 
-        #return tuple consisting of edges of each split
+
+
+    
 
 
 
+
+    
 
     
 
